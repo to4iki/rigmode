@@ -1,0 +1,38 @@
+[package]
+name = "rigmode"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Attach work modes to AI coding agent prompts"
+license = "MIT"
+authors = ["Toshiki Takezawa <tsk.take815@gmail.com>"]
+repository = "https://github.com/to4iki/rigmode"
+homepage = "https://github.com/to4iki/rigmode"
+readme = "README.md"
+keywords = ["cli", "agent", "claude", "modes", "hooks"]
+categories = ["command-line-utilities"]
+include = [
+    "/src/**/*.rs",
+    "/docs/**/*.md",
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/README.md",
+    "/LICENSE",
+]
+
+[[bin]]
+name = "rigmode"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "6"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
