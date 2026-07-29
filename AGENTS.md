@@ -24,4 +24,4 @@ cargo fmt
 - `attach` always exits 0. Claude Code's `UserPromptSubmit` erases the prompt on exit 2 and surfaces a hook error on other non-zero exits.
 - Mode selection is `(priority desc, name asc)`, not filename order alone.
 - Hook registration uses Claude Code exec form (`command` + `args`) and keys idempotency on `args`, not the binary path.
-- Cursor / Codex adapters are not a drop-in decode; those agents lack a per-prompt context-injection hook.
+- Cursor lacks per-prompt context injection (`beforeSubmitPrompt` cannot attach mode text). Codex documents `UserPromptSubmit` + `additionalContext`, but no rigmode adapter yet.

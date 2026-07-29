@@ -4,7 +4,12 @@ Attach work modes to AI coding agent prompts.
 
 A mode declares decision principles, stop conditions, and human gates. The mode whose triggers match your prompt is injected automatically via an agent hook.
 
-Claude Code only, for now. Cursor and Codex do not expose an equivalent per-prompt context-injection hook.
+## Agent support
+
+| Capability | Claude Code | Cursor | Codex |
+| -------------------------------- | ----------- | ------ | ----- |
+| Per-prompt mode attach | ✅ | ❌ | ❌ |
+| `hook install` / `uninstall` | ✅ | ❌ | ❌ |
 
 ## Quick Start
 
