@@ -17,7 +17,10 @@ pub fn execute(prompt: &str, modes_dirs: Vec<PathBuf>, config: &Config) -> Resul
             println!("modes searched: {}", modes.len());
         }
         Some(sel) => {
-            println!("chosen: {} (priority {})", sel.chosen.name, sel.chosen.priority);
+            println!(
+                "chosen: {} (priority {})",
+                sel.chosen.name, sel.chosen.priority
+            );
             println!("path: {}", sel.chosen.path.display());
             if sel.matched_names.len() > 1 {
                 println!("also matched:");

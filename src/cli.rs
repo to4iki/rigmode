@@ -40,6 +40,16 @@ pub enum Command {
         #[arg(long = "modes-dir")]
         modes_dirs: Vec<std::path::PathBuf>,
     },
+
+    /// List recorded interventions (newest first)
+    Gate {
+        /// Filter by mode name
+        #[arg(long)]
+        mode: Option<String>,
+        /// Max rows to print
+        #[arg(long)]
+        limit: Option<usize>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

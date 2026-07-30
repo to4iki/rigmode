@@ -49,3 +49,24 @@ rigmode explain "この実装をレビューして"
 ```
 
 Shows the winning mode, other matches, and why.
+
+### `rigmode gate`
+
+Lists recorded interventions (newest first).
+
+```sh
+rigmode gate
+rigmode gate --mode implement
+rigmode gate --limit 20
+```
+
+### Gate recording
+
+`gates.jsonl` records interventions only — the moments a human pushed back on the agent's work. There is no record command and no chat syntax to memorize. Declare intervention words in `config.toml`:
+
+```toml
+[gate]
+markers = ["違う", "やり直し", "そうじゃなくて"]
+```
+
+When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` using the session's last attached mode. The matched marker and the first line (truncated to 200 chars) are stored for context. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.

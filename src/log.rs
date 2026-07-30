@@ -20,12 +20,7 @@ struct AttachRecord<'a> {
 }
 
 /// Best-effort append. Failures are swallowed so attach stays exit 0.
-pub fn append_attach(
-    path: &Path,
-    agent: &str,
-    meta: &PromptMeta,
-    selection: &Selection,
-) {
+pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, selection: &Selection) {
     let record = AttachRecord {
         ts: Local::now().to_rfc3339(),
         agent,

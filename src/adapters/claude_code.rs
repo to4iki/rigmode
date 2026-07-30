@@ -92,12 +92,8 @@ pub fn install_hook(settings_path: &std::path::Path, binary: &std::path::Path) -
         .context("settings.json root must be an object")?
         .entry("hooks")
         .or_insert_with(|| json!({}));
-    let hooks_obj = hooks
-        .as_object_mut()
-        .context("hooks must be an object")?;
-    let entries = hooks_obj
-        .entry(EVENT)
-        .or_insert_with(|| json!([]));
+    let hooks_obj = hooks.as_object_mut().context("hooks must be an object")?;
+    let entries = hooks_obj.entry(EVENT).or_insert_with(|| json!([]));
     let list = entries
         .as_array_mut()
         .context("UserPromptSubmit must be an array")?;
@@ -151,10 +147,7 @@ pub fn registered_command(settings_path: &std::path::Path) -> Result<Option<Stri
     };
     for entry in entries {
         if is_our_entry(entry) {
-            if let Some(cmd) = entry
-                .pointer("/hooks/0/command")
-                .and_then(|c| c.as_str())
-            {
+            if let Some(cmd) = entry.pointer("/hooks/0/command").and_then(|c| c.as_str()) {
                 return Ok(Some(cmd.to_string()));
             }
         }

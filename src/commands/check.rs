@@ -55,11 +55,7 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
                         warnings += 1;
                     }
                 }
-                let stem = m
-                    .path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
+                let stem = m.path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
                 if stem != m.name {
                     println!(
                         "  ! {}: warning: name {:?} does not match filename stem {:?}",

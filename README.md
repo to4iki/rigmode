@@ -2,7 +2,7 @@
 
 Attach work modes to AI coding agent prompts.
 
-A mode declares decision principles, stop conditions, and human gates. The mode whose triggers match your prompt is injected automatically via an agent hook.
+A mode declares decision principles, stop conditions, and human gates. The mode whose triggers match your prompt is injected automatically via an agent hook. Push back in your own words — configured intervention markers record the correction to `gates.jsonl` automatically.
 
 ## Agent support
 

@@ -21,6 +21,8 @@ triggers: レビュー|コードレビュー|review
 
 Body headings (判定原則 / 停止条件 / Gate) are a convention only. Keep bodies under 10,000 characters (Claude Code truncates hook output).
 
+Under **Gate**, state what the human should judge. Answers are given in natural language; only pushbacks are recorded, via `[gate]` markers in config.toml (see [Usage](usage.md#gate-recording)).
+
 ## Selection
 
 1. Load `*.md` from each `modes_dirs` entry; earlier directory wins on duplicate `name`.
