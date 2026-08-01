@@ -2,8 +2,7 @@ use crate::config;
 use crate::gate;
 
 pub fn execute(mode: Option<String>, limit: Option<usize>) -> anyhow::Result<()> {
-    let data_dir = config::default_data_dir()?;
-    let path = data_dir.join("gates.jsonl");
+    let path = config::default_data_dir()?.join(gate::GATES_LOG);
     let records = gate::list_gates(&path, mode.as_deref(), limit);
 
     if records.is_empty() {

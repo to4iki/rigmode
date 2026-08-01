@@ -1,31 +1,27 @@
 # Usage
 
-## Commands
+## `rigmode attach <AGENT>`
 
-### `rigmode attach <AGENT>`
-
-Used by the Claude Code `UserPromptSubmit` hook. Reads JSON on stdin, prints context on stdout.
+Used by the Claude Code `UserPromptSubmit` hook. Reads JSON on stdin, prints `hookSpecificOutput.additionalContext` JSON on stdout.
 
 ```sh
 echo '{"prompt":"実装して"}' | rigmode attach claude-code
 ```
 
-Always exits `0` (empty stdout on failure or no match), so Claude Code never erases the prompt. Output is `hookSpecificOutput.additionalContext` JSON, not plain text.
+Always exits `0` (empty stdout on failure or no match), so Claude Code never erases the prompt.
 
 `--modes-dir <PATH>` (repeatable) overrides `config.toml`. Agent today: `claude-code`.
 
-### `rigmode hook install <AGENT>`
+## `rigmode hook install <AGENT>`
 
 ```sh
 rigmode hook install claude-code
 rigmode hook install claude-code --force   # allow a binary under target/
 ```
 
-Registers an exec-form `UserPromptSubmit` hook in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Idempotent on `args`, not the binary path. Then runs `check` and prints warnings without failing.
+Registers the `UserPromptSubmit` hook in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Idempotent on `args`, not the binary path. Then runs `check` and prints warnings without failing. Restart Claude Code after install.
 
-Restart Claude Code after install.
-
-### `rigmode hook uninstall <AGENT>`
+## `rigmode hook uninstall <AGENT>`
 
 ```sh
 rigmode hook uninstall claude-code
@@ -33,7 +29,7 @@ rigmode hook uninstall claude-code
 
 Removes only the rigmode entry.
 
-### `rigmode check`
+## `rigmode check`
 
 ```sh
 rigmode check
@@ -42,43 +38,31 @@ rigmode check --modes-dir ./modes
 
 Validates modes and hook registration. Non-zero exit on errors; warnings alone still exit `0`.
 
-### `rigmode explain <PROMPT>`
-
-```sh
-rigmode explain "この実装をレビューして"
-```
-
-Shows every mode that would attach, in order.
-
-### `rigmode log`
-
-Lists recorded mode attaches (newest first) — the ground truth for which mode a prompt actually received, instead of asking the agent to self-report.
+## `rigmode log`
 
 ```sh
 rigmode log
-rigmode log --mode review
-rigmode log --limit 20
+rigmode log --mode review --limit 20
 ```
 
-Columns: timestamp, attached modes (comma-separated), working directory. Reads `attach.jsonl`.
+Lists recorded attaches (newest first) from `attach.jsonl` — the ground truth for which modes a prompt actually received. Columns: timestamp, attached modes, working directory.
 
-### `rigmode gate`
-
-Lists recorded interventions (newest first).
+## `rigmode gate`
 
 ```sh
 rigmode gate
-rigmode gate --mode implement
-rigmode gate --limit 20
+rigmode gate --mode implement --limit 20
 ```
 
-### Gate recording
+Lists recorded interventions (newest first) from `gates.jsonl`.
 
-`gates.jsonl` records interventions only — the moments a human pushed back on the agent's work. There is no record command and no chat syntax to memorize. Declare intervention words in `config.toml`:
+## Gate recording
+
+`gates.jsonl` records interventions only — the moments a human pushed back on the agent's work. Declare intervention words in `config.toml`:
 
 ```toml
 [gate]
 markers = ["違う", "やり直し", "そうじゃなくて"]
 ```
 
-When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` using the session's last attached modes. The matched marker and the first line (truncated to 200 chars) are stored for context. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.
+When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` with the session's last attached modes. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.

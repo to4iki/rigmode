@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub modes_dirs: Vec<PathBuf>,
@@ -12,30 +12,32 @@ pub struct Config {
 
 /// Words that mark a prompt as a human intervention (a rejection of the
 /// agent's work). An empty list (the default) disables recording.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct GateConfig {
     pub markers: Vec<String>,
 }
 
 impl Config {
-    /// Resolved modes directories. Falls back to the default modes dir when empty.
-    pub fn resolved_modes_dirs(&self) -> Result<Vec<PathBuf>> {
-        if self.modes_dirs.is_empty() {
-            Ok(vec![default_modes_dir()?])
+    /// CLI override dirs win; else config entries; else `<config>/rigmode/modes`.
+    pub fn resolve_modes_dirs(&self, overrides: Vec<PathBuf>) -> Result<Vec<PathBuf>> {
+        if !overrides.is_empty() {
+            Ok(overrides)
+        } else if self.modes_dirs.is_empty() {
+            Ok(vec![config_base_dir()?.join("modes")])
         } else {
             Ok(self.modes_dirs.clone())
         }
     }
 }
 
-/// Expand a leading `~` or `~/` to the given home directory.
-pub fn expand_tilde(path: &Path, home: Option<&Path>) -> PathBuf {
-    let Some(home) = home else {
+/// Expand a leading `~` or `~/` to the home directory.
+fn expand_tilde(path: &Path) -> PathBuf {
+    let Some(home) = dirs::home_dir() else {
         return path.to_path_buf();
     };
     match path.to_str() {
-        Some("~") => home.to_path_buf(),
+        Some("~") => home,
         Some(s) => match s.strip_prefix("~/") {
             Some(rest) => home.join(rest),
             None => path.to_path_buf(),
@@ -44,50 +46,30 @@ pub fn expand_tilde(path: &Path, home: Option<&Path>) -> PathBuf {
     }
 }
 
-fn config_path_from(home: Option<&Path>, xdg_config_home: Option<&Path>) -> Option<PathBuf> {
-    let base = xdg_config_home
+/// `$XDG_CONFIG_HOME/rigmode`, falling back to `~/.config/rigmode`.
+fn config_base_dir() -> Result<PathBuf> {
+    std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .or_else(|| home.map(|h| h.join(".config")))?;
-    Some(base.join("rigmode").join("config.toml"))
-}
-
-fn data_dir_from(home: Option<&Path>, xdg_data_home: Option<&Path>) -> Option<PathBuf> {
-    let base = xdg_data_home
-        .map(PathBuf::from)
-        .or_else(|| home.map(|h| h.join(".local").join("share")))?;
-    Some(base.join("rigmode"))
-}
-
-/// Prefers `$XDG_CONFIG_HOME/rigmode/config.toml`, falling back to `~/.config/rigmode/config.toml`.
-pub fn default_config_path() -> Result<PathBuf> {
-    let home = dirs::home_dir();
-    let xdg = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
-    config_path_from(home.as_deref(), xdg.as_deref())
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+        .map(|base| base.join("rigmode"))
         .context("Could not determine config directory")
 }
 
-/// Prefers `$XDG_CONFIG_HOME/rigmode/modes`, falling back to `~/.config/rigmode/modes`.
-pub fn default_modes_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir();
-    let xdg = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
-    let base = xdg
-        .or_else(|| home.map(|h| h.join(".config")))
-        .context("Could not determine config directory")?;
-    Ok(base.join("rigmode").join("modes"))
+pub fn default_config_path() -> Result<PathBuf> {
+    Ok(config_base_dir()?.join("config.toml"))
 }
 
-/// Prefers `$XDG_DATA_HOME/rigmode`, falling back to `~/.local/share/rigmode`.
+/// `$XDG_DATA_HOME/rigmode`, falling back to `~/.local/share/rigmode`.
 pub fn default_data_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir();
-    let xdg = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from);
-    data_dir_from(home.as_deref(), xdg.as_deref()).context("Could not determine data directory")
+    std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("share")))
+        .map(|base| base.join("rigmode"))
+        .context("Could not determine data directory")
 }
 
+/// Missing file is the zero-config default, not an error.
 pub fn load_config(path: &Path) -> Result<Config> {
-    load_config_with_home(path, dirs::home_dir().as_deref())
-}
-
-fn load_config_with_home(path: &Path, home: Option<&Path>) -> Result<Config> {
     if !path.exists() {
         return Ok(Config::default());
     }
@@ -98,11 +80,7 @@ fn load_config_with_home(path: &Path, home: Option<&Path>) -> Result<Config> {
     let mut config: Config = toml::from_str(&content)
         .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
 
-    config.modes_dirs = config
-        .modes_dirs
-        .into_iter()
-        .map(|p| expand_tilde(&p, home))
-        .collect();
+    config.modes_dirs = config.modes_dirs.iter().map(|p| expand_tilde(p)).collect();
 
     Ok(config)
 }

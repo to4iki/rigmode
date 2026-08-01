@@ -4,14 +4,13 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 
 use crate::adapters::claude_code;
-use crate::commands::attach;
 use crate::config::Config;
 use crate::mode::{self, Mode};
 
 const MAX_BODY_CHARS: usize = 10_000;
 
 pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
-    let dirs = attach::modes_dirs_for(modes_dirs, config)?;
+    let dirs = config.resolve_modes_dirs(modes_dirs)?;
     let mut warnings = 0;
     let mut errors = 0;
 
@@ -25,7 +24,6 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
     }
 
     let paths = mode::list_mode_paths(&dirs)?;
-    let mut modes = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
     if paths.is_empty() {
@@ -67,8 +65,6 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
                 m.name
             );
             warnings += 1;
-        } else {
-            modes.push(m);
         }
     }
 

@@ -3,14 +3,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::mode::Mode;
-
-#[derive(Debug, Clone, Default)]
-pub struct PromptMeta {
-    pub prompt: String,
-    pub session_id: Option<String>,
-    pub transcript_path: Option<String>,
-    pub cwd: Option<String>,
-}
+use crate::prompt::PromptMeta;
 
 #[derive(Debug, Deserialize)]
 struct ClaudePayload {

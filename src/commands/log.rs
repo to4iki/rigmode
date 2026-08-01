@@ -2,8 +2,7 @@ use crate::config;
 use crate::log;
 
 pub fn execute(mode: Option<String>, limit: Option<usize>) -> anyhow::Result<()> {
-    let data_dir = config::default_data_dir()?;
-    let path = data_dir.join("attach.jsonl");
+    let path = config::default_data_dir()?.join(log::ATTACH_LOG);
     let records = log::list_attaches(&path, mode.as_deref(), limit);
 
     if records.is_empty() {

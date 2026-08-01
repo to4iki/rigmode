@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(Debug, Parser)]
+#[derive(Parser)]
 #[command(
     name = "rigmode",
     version,
@@ -11,7 +11,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Subcommand)]
 pub enum Command {
     /// Match a prompt against modes and print agent-specific context (always exits 0)
     Attach {
@@ -29,14 +29,6 @@ pub enum Command {
 
     /// Validate modes and hook registration
     Check {
-        #[arg(long = "modes-dir")]
-        modes_dirs: Vec<std::path::PathBuf>,
-    },
-
-    /// Show which mode would attach for a prompt
-    Explain {
-        /// Prompt text to match
-        prompt: String,
         #[arg(long = "modes-dir")]
         modes_dirs: Vec<std::path::PathBuf>,
     },
@@ -62,7 +54,7 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Subcommand)]
 pub enum HookAction {
     /// Register the attach hook for an agent
     Install {
@@ -75,7 +67,7 @@ pub enum HookAction {
     Uninstall { agent: Agent },
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum)]
 pub enum Agent {
     #[value(name = "claude-code")]
     ClaudeCode,

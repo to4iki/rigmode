@@ -7,30 +7,17 @@ Zero-config default: load modes from `~/.config/rigmode/modes`.
 **Path:** `~/.config/rigmode/config.toml` (or `$XDG_CONFIG_HOME/rigmode/config.toml`)
 
 ```toml
-modes_dirs = ["~/src/github.com/to4iki/prompt-harness/modes"]
+modes_dirs = ["~/my/modes"]
 
 [gate]
 markers = ["違う", "やり直し"]
 ```
 
-`~/` is expanded. Earlier directories win on duplicate mode names. `--modes-dir` on the CLI overrides this list.
+`~/` is expanded. Earlier directories win on duplicate mode names. `--modes-dir` on the CLI overrides this list. `[gate]` markers opt into intervention recording (see [Usage](usage.md#gate-recording)).
 
-`[gate]` markers opt into intervention recording (see [Usage](usage.md#gate-recording)); omit it (default) and nothing is recorded.
+## Data Files
 
-## Attach Log
+Under `~/.local/share/rigmode/` (or `$XDG_DATA_HOME/rigmode/`), one JSON object per line, written best-effort so `attach` always exits `0`:
 
-**Path:** `~/.local/share/rigmode/attach.jsonl` (or `$XDG_DATA_HOME/...`)
-
-One JSON object per successful attach (`modes`, session metadata). Write failures are ignored so `attach` still exits `0`. Browse with `rigmode log`.
-
-Unparseable lines and records from before the multi-mode schema (`chosen`/`mode` fields) are silently ignored when reading either log.
-
-## Gate Log
-
-**Path:** `~/.local/share/rigmode/gates.jsonl` (or `$XDG_DATA_HOME/...`)
-
-One JSON object per intervention: a prompt whose first line contains a configured `[gate]` marker. Written by `attach` when the session has a prior attach record. Write failures are ignored so `attach` still exits `0`. Browse with `rigmode gate`.
-
-## Claude Code Settings
-
-`hook install` / `uninstall` edit `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Only the rigmode `UserPromptSubmit` entry is touched. Malformed JSON is refused.
+- `attach.jsonl` — one line per attach. Browse with `rigmode log`.
+- `gates.jsonl` — one line per intervention. Browse with `rigmode gate`.

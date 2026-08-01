@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use regex::Regex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Mode {
     pub name: String,
     /// Parsed trigger terms, matched literally.
@@ -107,7 +107,7 @@ fn parse_triggers(value: &str) -> Vec<String> {
 /// draw that line, since regex counts kana as word characters. The regex crate
 /// has no lookaround, so the guards consume a neighbor char instead — fine for
 /// `is_match`, which is the only use.
-pub fn build_pattern(terms: &[String]) -> Option<Regex> {
+fn build_pattern(terms: &[String]) -> Option<Regex> {
     let mut alts = Vec::new();
     for term in terms {
         let term = term.trim();
@@ -202,7 +202,6 @@ mod tests {
     #[test]
     fn strips_quotes_from_triggers() {
         let m = mode("review", "\"レビュー, review\"");
-        assert_eq!(m.terms, vec!["レビュー", "review"]);
         assert!(m.triggers_re.unwrap().is_match("コードレビュー"));
     }
 

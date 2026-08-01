@@ -5,14 +5,17 @@ use std::path::Path;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::adapters::claude_code::PromptMeta;
 use crate::mode::Mode;
+use crate::prompt::PromptMeta;
+
+pub const ATTACH_LOG: &str = "attach.jsonl";
 
 #[derive(Debug, Serialize)]
 struct AttachRecord<'a> {
     ts: String,
     agent: &'a str,
     session_id: Option<&'a str>,
+    /// Not read back; kept so a human can open the session transcript.
     transcript_path: Option<&'a str>,
     cwd: Option<&'a str>,
     /// Every attached mode, in injection order.
@@ -20,28 +23,18 @@ struct AttachRecord<'a> {
 }
 
 /// One recorded attach, read back from attach.jsonl.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AttachLogRecord {
-    #[serde(default)]
     pub ts: String,
     pub session_id: Option<String>,
     pub cwd: Option<String>,
-    #[serde(default)]
     pub modes: Vec<String>,
 }
 
-/// Best-effort append. Failures are swallowed so attach stays exit 0.
-pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode]) {
-    let record = AttachRecord {
-        ts: Local::now().to_rfc3339(),
-        agent,
-        session_id: meta.session_id.as_deref(),
-        transcript_path: meta.transcript_path.as_deref(),
-        cwd: meta.cwd.as_deref(),
-        modes: modes.iter().map(|m| m.name.as_str()).collect(),
-    };
-
-    let Ok(line) = serde_json::to_string(&record) else {
+/// Best-effort append of one JSONL line. Failures are swallowed so attach
+/// stays exit 0.
+pub fn append_jsonl<T: Serialize>(path: &Path, record: &T) {
+    let Ok(line) = serde_json::to_string(record) else {
         return;
     };
     if let Some(parent) = path.parent() {
@@ -53,10 +46,22 @@ pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode
     let _ = writeln!(file, "{line}");
 }
 
+pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode]) {
+    let record = AttachRecord {
+        ts: Local::now().to_rfc3339(),
+        agent,
+        session_id: meta.session_id.as_deref(),
+        transcript_path: meta.transcript_path.as_deref(),
+        cwd: meta.cwd.as_deref(),
+        modes: modes.iter().map(|m| m.name.as_str()).collect(),
+    };
+    append_jsonl(path, &record);
+}
+
 /// Parse a JSONL log newest-first (file order is append-only), keeping records
 /// that pass `keep`, stopping once `limit` are found. Unparseable lines are
 /// skipped; missing file → empty.
-pub(crate) fn list_jsonl<T: serde::de::DeserializeOwned>(
+pub fn list_jsonl<T: serde::de::DeserializeOwned>(
     path: &Path,
     keep: impl Fn(&T) -> bool,
     limit: Option<usize>,
@@ -73,7 +78,6 @@ pub(crate) fn list_jsonl<T: serde::de::DeserializeOwned>(
 }
 
 /// Newest first, optionally filtered by attached mode, limited.
-/// Records without `modes` (pre-rename schema) are ignored.
 pub fn list_attaches(
     path: &Path,
     mode: Option<&str>,
@@ -81,10 +85,7 @@ pub fn list_attaches(
 ) -> Vec<AttachLogRecord> {
     list_jsonl(
         path,
-        |r: &AttachLogRecord| match mode {
-            Some(mode) => r.modes.iter().any(|m| m == mode),
-            None => !r.modes.is_empty(),
-        },
+        |r: &AttachLogRecord| mode.is_none_or(|mode| r.modes.iter().any(|m| m == mode)),
         limit,
     )
 }
@@ -97,19 +98,18 @@ mod tests {
     #[test]
     fn list_newest_first_with_filter_and_limit() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join("attach.jsonl");
+        let path = dir.path().join(ATTACH_LOG);
         fs::write(
             &path,
-            r#"{"ts":"t0","agent":"claude-code","session_id":"s0","cwd":"/z","chosen":"old-schema"}
-{"ts":"t1","agent":"claude-code","session_id":"s1","cwd":"/a","modes":["implement"]}
-{"ts":"t2","agent":"claude-code","session_id":"s2","cwd":"/b","modes":["implement","review"]}
+            r#"{"ts":"t1","session_id":"s1","cwd":"/a","modes":["implement"]}
+{"ts":"t2","session_id":"s2","cwd":"/b","modes":["implement","review"]}
 not json
 "#,
         )
         .unwrap();
 
         let all = list_attaches(&path, None, None);
-        assert_eq!(all.len(), 2); // pre-rename t0 is ignored
+        assert_eq!(all.len(), 2);
         assert_eq!(all[0].ts, "t2"); // newest first
         assert_eq!(all[0].modes, vec!["implement", "review"]);
 
