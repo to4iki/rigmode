@@ -48,7 +48,19 @@ Validates modes and hook registration. Non-zero exit on errors; warnings alone s
 rigmode explain "この実装をレビューして"
 ```
 
-Shows the winning mode, other matches, and why.
+Shows every mode that would attach, in order.
+
+### `rigmode log`
+
+Lists recorded mode attaches (newest first) — the ground truth for which mode a prompt actually received, instead of asking the agent to self-report.
+
+```sh
+rigmode log
+rigmode log --mode review
+rigmode log --limit 20
+```
+
+Columns: timestamp, attached modes (comma-separated), working directory. Reads `attach.jsonl`.
 
 ### `rigmode gate`
 
@@ -69,4 +81,4 @@ rigmode gate --limit 20
 markers = ["違う", "やり直し", "そうじゃなくて"]
 ```
 
-When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` using the session's last attached mode. The matched marker and the first line (truncated to 200 chars) are stored for context. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.
+When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` using the session's last attached modes. The matched marker and the first line (truncated to 200 chars) are stored for context. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.

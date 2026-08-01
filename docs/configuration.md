@@ -21,7 +21,9 @@ markers = ["違う", "やり直し"]
 
 **Path:** `~/.local/share/rigmode/attach.jsonl` (or `$XDG_DATA_HOME/...`)
 
-One JSON object per successful attach (`chosen`, `matched`, session metadata). Write failures are ignored so `attach` still exits `0`.
+One JSON object per successful attach (`modes`, session metadata). Write failures are ignored so `attach` still exits `0`. Browse with `rigmode log`.
+
+Unparseable lines and records from before the multi-mode schema (`chosen`/`mode` fields) are silently ignored when reading either log.
 
 ## Gate Log
 

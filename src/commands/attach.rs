@@ -9,7 +9,7 @@ use crate::cli::Agent;
 use crate::config::{self, Config};
 use crate::gate;
 use crate::log;
-use crate::mode::{self, Selection};
+use crate::mode::{self, Mode};
 
 /// Always returns ExitCode::SUCCESS. Errors become empty stdout.
 pub fn execute(agent: Agent, modes_dirs: Vec<PathBuf>) -> ExitCode {
@@ -29,11 +29,12 @@ fn run(agent: Agent, modes_dirs: Vec<PathBuf>) -> anyhow::Result<String> {
         Agent::ClaudeCode => {
             let meta = claude_code::decode(&stdin)?;
             maybe_record_gate(&meta);
-            let Some(selection) = mode::select(&meta.prompt, &modes) else {
+            let matched = mode::matching(&meta.prompt, &modes);
+            if matched.is_empty() {
                 return Ok(String::new());
-            };
-            append_log(agent, &meta, &selection);
-            Ok(claude_code::encode(&selection.chosen))
+            }
+            append_log(agent, &meta, &matched);
+            Ok(claude_code::encode(&matched))
         }
     }
 }
@@ -64,16 +65,11 @@ fn resolve_modes_dirs(override_dirs: Vec<PathBuf>) -> anyhow::Result<Vec<PathBuf
     config.resolved_modes_dirs()
 }
 
-fn append_log(agent: Agent, meta: &PromptMeta, selection: &Selection) {
+fn append_log(agent: Agent, meta: &PromptMeta, modes: &[&Mode]) {
     let Ok(data_dir) = config::default_data_dir() else {
         return;
     };
-    log::append_attach(
-        &data_dir.join("attach.jsonl"),
-        agent.as_str(),
-        meta,
-        selection,
-    );
+    log::append_attach(&data_dir.join("attach.jsonl"), agent.as_str(), meta, modes);
 }
 
 /// Shared helper for check/explain to resolve modes dirs.

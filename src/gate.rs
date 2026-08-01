@@ -1,28 +1,24 @@
 use std::fs::{self, OpenOptions};
-use std::io::{BufRead, Write};
+use std::io::Write;
 use std::path::Path;
 
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use crate::config::GateConfig;
+use crate::log;
 
 /// One recorded intervention: the user pushed back on the agent's work.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GateRecord {
     pub ts: String,
-    pub mode: String,
+    /// Modes attached by the session's last attach.
+    pub modes: Vec<String>,
     /// The marker that matched.
     pub marker: String,
     /// First line of the prompt (truncated) for context.
     pub note: String,
     pub session_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct AttachLine {
-    session_id: Option<String>,
-    chosen: Option<String>,
 }
 
 const NOTE_MAX_CHARS: usize = 200;
@@ -54,29 +50,13 @@ fn truncate_chars(s: &str, max: usize) -> String {
     }
 }
 
-/// Last `chosen` mode for `session_id` in attach.jsonl (file order; last wins).
-pub fn resolve_mode_from_attach_log(path: &Path, session_id: &str) -> Option<String> {
-    let file = fs::File::open(path).ok()?;
-    let reader = std::io::BufReader::new(file);
-    let mut found = None;
-    for line in reader.lines() {
-        let Ok(line) = line else {
-            continue;
-        };
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        let Ok(rec) = serde_json::from_str::<AttachLine>(line) else {
-            continue;
-        };
-        if rec.session_id.as_deref() == Some(session_id) {
-            if let Some(chosen) = rec.chosen {
-                found = Some(chosen);
-            }
-        }
-    }
-    found
+/// Modes attached by the session's last attach (list_attaches is newest first,
+/// so the first hit wins).
+pub fn resolve_modes_from_attach_log(path: &Path, session_id: &str) -> Option<Vec<String>> {
+    log::list_attaches(path, None, None)
+        .into_iter()
+        .find(|r| r.session_id.as_deref() == Some(session_id))
+        .map(|r| r.modes)
 }
 
 /// If the prompt's first line contains a configured marker and a prior attach
@@ -95,13 +75,13 @@ pub fn maybe_record_from_prompt(
         return;
     };
     let attach_path = data_dir.join("attach.jsonl");
-    let Some(mode) = resolve_mode_from_attach_log(&attach_path, session_id) else {
+    let Some(modes) = resolve_modes_from_attach_log(&attach_path, session_id) else {
         return;
     };
 
     let record = GateRecord {
         ts: Local::now().to_rfc3339(),
-        mode,
+        modes,
         marker,
         note,
         session_id: session_id.to_string(),
@@ -122,23 +102,14 @@ fn append_record(path: &Path, record: &GateRecord) {
     let _ = writeln!(file, "{line}");
 }
 
-/// Newest first, optionally filtered by mode, limited. Missing file → empty.
+/// Newest first, optionally filtered by mode, limited.
+/// Records with a pre-rename `mode` string are ignored.
 pub fn list_gates(path: &Path, mode: Option<&str>, limit: Option<usize>) -> Vec<GateRecord> {
-    let Ok(text) = fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    let mut records: Vec<GateRecord> = text
-        .lines()
-        .filter_map(|line| serde_json::from_str(line.trim()).ok())
-        .collect();
-    if let Some(mode) = mode {
-        records.retain(|r| r.mode == mode);
-    }
-    records.reverse();
-    if let Some(limit) = limit {
-        records.truncate(limit);
-    }
-    records
+    log::list_jsonl(
+        path,
+        |r: &GateRecord| mode.is_none_or(|mode| r.modes.iter().any(|m| m == mode)),
+        limit,
+    )
 }
 
 #[cfg(test)]
@@ -171,7 +142,7 @@ mod tests {
         let data = dir.path();
         fs::write(
             data.join("attach.jsonl"),
-            r#"{"ts":"t","session_id":"sid","chosen":"review"}
+            r#"{"ts":"t","session_id":"sid","modes":["implement","review"]}
 "#,
         )
         .unwrap();
@@ -184,7 +155,7 @@ mod tests {
 
         let gates = list_gates(&data.join("gates.jsonl"), None, None);
         assert_eq!(gates.len(), 1);
-        assert_eq!(gates[0].mode, "review");
+        assert_eq!(gates[0].modes, vec!["implement", "review"]);
         assert_eq!(gates[0].marker, "違う");
         assert_eq!(gates[0].note, "そこは違う、直して");
     }
@@ -195,7 +166,7 @@ mod tests {
         let data = dir.path();
         fs::write(
             data.join("attach.jsonl"),
-            r#"{"ts":"t","session_id":"s","chosen":"review"}
+            r#"{"ts":"t","session_id":"s","modes":["review"]}
 "#,
         )
         .unwrap();
@@ -213,20 +184,20 @@ mod tests {
     }
 
     #[test]
-    fn resolve_mode_takes_last_for_session() {
+    fn resolve_modes_takes_last_for_session() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("attach.jsonl");
         fs::write(
             &path,
-            r#"{"ts":"t1","session_id":"s1","chosen":"implement"}
-{"ts":"t2","session_id":"s1","chosen":"review"}
+            r#"{"ts":"t1","session_id":"s1","modes":["implement"]}
+{"ts":"t2","session_id":"s1","modes":["review","pull-request"]}
 "#,
         )
         .unwrap();
         assert_eq!(
-            resolve_mode_from_attach_log(&path, "s1").as_deref(),
-            Some("review")
+            resolve_modes_from_attach_log(&path, "s1"),
+            Some(vec!["review".to_string(), "pull-request".to_string()])
         );
-        assert!(resolve_mode_from_attach_log(&path, "missing").is_none());
+        assert!(resolve_modes_from_attach_log(&path, "missing").is_none());
     }
 }

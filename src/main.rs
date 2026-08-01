@@ -35,6 +35,7 @@ fn run(command: Command) -> Result<()> {
         Command::Explain { prompt, modes_dirs } => {
             commands::explain::execute(&prompt, modes_dirs, &config)
         }
+        Command::Log { mode, limit } => commands::log::execute(mode, limit),
         Command::Gate { mode, limit } => commands::gate::execute(mode, limit),
     }
 }

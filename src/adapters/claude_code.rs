@@ -31,12 +31,21 @@ pub fn decode(stdin: &str) -> Result<PromptMeta> {
     })
 }
 
-pub fn encode(mode: &Mode) -> String {
-    let context = format!(
-        "The work mode matching this request is {}. Its contents follow. \
-         Hook output does not reach subagents; delegating copies this body into subagent instructions.\n\n{}",
-        mode.name, mode.body
+pub fn encode(modes: &[&Mode]) -> String {
+    use std::fmt::Write;
+
+    let names: Vec<&str> = modes.iter().map(|m| m.name.as_str()).collect();
+    let mut context = format!(
+        "Work modes matching this request: {}. All of them apply, so satisfy every \
+         stop condition and respect every gate below. Hook output does not reach \
+         subagents, so delegating requires copying these bodies into the subagent \
+         instructions.",
+        names.join(", ")
     );
+    // Name each body, so a section heading is never read as the other mode's.
+    for m in modes {
+        let _ = write!(context, "\n\n# {}\n\n{}", m.name, m.body);
+    }
     json!({
         "hookSpecificOutput": {
             "hookEventName": "UserPromptSubmit",

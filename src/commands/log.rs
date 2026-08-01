@@ -1,24 +1,22 @@
 use crate::config;
-use crate::gate;
+use crate::log;
 
 pub fn execute(mode: Option<String>, limit: Option<usize>) -> anyhow::Result<()> {
     let data_dir = config::default_data_dir()?;
-    let path = data_dir.join("gates.jsonl");
-    let records = gate::list_gates(&path, mode.as_deref(), limit);
+    let path = data_dir.join("attach.jsonl");
+    let records = log::list_attaches(&path, mode.as_deref(), limit);
 
     if records.is_empty() {
-        eprintln!("No gate records in {}", path.display());
+        eprintln!("No attach records in {}", path.display());
         return Ok(());
     }
 
     for r in records {
         println!(
-            "{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}",
             r.ts,
             r.modes.join(","),
-            r.marker,
-            r.note,
-            r.session_id
+            r.cwd.as_deref().unwrap_or("-")
         );
     }
     Ok(())

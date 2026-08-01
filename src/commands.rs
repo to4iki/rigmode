@@ -3,3 +3,4 @@ pub mod check;
 pub mod explain;
 pub mod gate;
 pub mod hook;
+pub mod log;

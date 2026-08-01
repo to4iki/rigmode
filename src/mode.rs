@@ -2,30 +2,23 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct Mode {
     pub name: String,
-    pub priority: i32,
-    /// Original triggers text (for display / overlap hints).
-    pub triggers: String,
-    /// Compiled at load time. `None` when empty or invalid.
+    /// Parsed trigger terms, matched literally.
+    pub terms: Vec<String>,
+    /// Compiled at load time via [`build_pattern`]. `None` when no usable term.
     pub triggers_re: Option<Regex>,
     pub body: String,
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone)]
-pub struct Selection {
-    pub chosen: Mode,
-    /// Names of every mode that matched, winner first.
-    pub matched_names: Vec<String>,
-}
-
-/// Parse a mode markdown file. Does not require a pre-compiled regex to succeed.
-pub fn parse_mode(text: &str, path: &Path) -> Result<Mode> {
+/// Parse a mode markdown file. Never fails: bad frontmatter just yields a mode
+/// with no usable triggers, which `check` reports.
+pub fn parse_mode(text: &str, path: &Path) -> Mode {
     let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -34,8 +27,7 @@ pub fn parse_mode(text: &str, path: &Path) -> Result<Mode> {
 
     let (front, body) = split_frontmatter(text);
     let mut name = stem;
-    let mut priority = 0_i32;
-    let mut triggers = String::new();
+    let mut terms = Vec::new();
 
     for line in front.lines() {
         let line = line.trim().trim_end_matches('\r');
@@ -49,30 +41,20 @@ pub fn parse_mode(text: &str, path: &Path) -> Result<Mode> {
         let value = value.trim();
         match key {
             "name" => name = strip_quotes(value).to_string(),
-            "priority" => {
-                priority = strip_quotes(value)
-                    .parse()
-                    .with_context(|| format!("invalid priority in {}", path.display()))?;
-            }
-            "triggers" => triggers = parse_triggers(value)?,
+            "triggers" => terms = parse_triggers(value),
             _ => {}
         }
     }
 
-    let triggers_re = if triggers.is_empty() {
-        None
-    } else {
-        Regex::new(&triggers).ok()
-    };
+    let triggers_re = build_pattern(&terms);
 
-    Ok(Mode {
+    Mode {
         name,
-        priority,
-        triggers,
+        terms,
         triggers_re,
         body: body.trim().to_string(),
         path: path.to_path_buf(),
-    })
+    }
 }
 
 fn split_frontmatter(text: &str) -> (&str, &str) {
@@ -103,21 +85,53 @@ fn strip_quotes(value: &str) -> &str {
     value
 }
 
-fn parse_triggers(value: &str) -> Result<String> {
+/// Comma-separated terms, as a scalar or a `[a, b]` list. Quotes are stripped.
+fn parse_triggers(value: &str) -> Vec<String> {
     let value = value.trim();
-    if let Some(inner) = value.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-        let parts: Vec<&str> = inner
-            .split(',')
-            .map(|p| strip_quotes(p.trim()))
-            .filter(|p| !p.is_empty())
-            .collect();
-        if parts.is_empty() {
-            bail!("empty triggers list");
+    let inner = value
+        .strip_prefix('[')
+        .and_then(|s| s.strip_suffix(']'))
+        .unwrap_or_else(|| strip_quotes(value));
+    inner
+        .split(',')
+        .map(|t| strip_quotes(t.trim()).trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect()
+}
+
+/// Compile trigger terms into one case-insensitive pattern.
+///
+/// Each term is matched literally, and an end that is an ASCII letter may not be
+/// glued to another one, so `pr` stays out of `priority`. Only such ends are
+/// guarded: `実装して` has to keep matching in `実装してPR作って`, and `\b` cannot
+/// draw that line, since regex counts kana as word characters. The regex crate
+/// has no lookaround, so the guards consume a neighbor char instead — fine for
+/// `is_match`, which is the only use.
+pub fn build_pattern(terms: &[String]) -> Option<Regex> {
+    let mut alts = Vec::new();
+    for term in terms {
+        let term = term.trim();
+        if term.is_empty() {
+            continue;
         }
-        Ok(parts.join("|"))
-    } else {
-        Ok(strip_quotes(value).to_string())
+        // A space inside a term tolerates being dropped: `pull request` / `pullrequest`.
+        let mut word = term
+            .split_whitespace()
+            .map(regex::escape)
+            .collect::<Vec<_>>()
+            .join(r"\s?");
+        if term.starts_with(|c: char| c.is_ascii_alphabetic()) {
+            word = format!("(?:^|[^A-Za-z]){word}");
+        }
+        if term.ends_with(|c: char| c.is_ascii_alphabetic()) {
+            word = format!("{word}(?:[^A-Za-z]|$)");
+        }
+        alts.push(word);
     }
+    if alts.is_empty() {
+        return None;
+    }
+    Regex::new(&format!("(?i){}", alts.join("|"))).ok()
 }
 
 /// Collect `*.md` paths under modes dirs (sorted per directory).
@@ -140,7 +154,7 @@ pub fn list_mode_paths(dirs: &[PathBuf]) -> Result<Vec<PathBuf>> {
 }
 
 /// Load modes from directories. Earlier directories win on duplicate names.
-/// Unreadable or unparsable files are skipped (attach must stay resilient).
+/// Unreadable files are skipped (attach must stay resilient).
 pub fn load_modes(dirs: &[PathBuf]) -> Result<Vec<Mode>> {
     let mut seen = HashSet::new();
     let mut modes = Vec::new();
@@ -149,9 +163,7 @@ pub fn load_modes(dirs: &[PathBuf]) -> Result<Vec<Mode>> {
         let Ok(text) = fs::read_to_string(&path) else {
             continue;
         };
-        let Ok(mode) = parse_mode(&text, &path) else {
-            continue;
-        };
+        let mode = parse_mode(&text, &path);
         if seen.insert(mode.name.clone()) {
             modes.push(mode);
         }
@@ -160,61 +172,87 @@ pub fn load_modes(dirs: &[PathBuf]) -> Result<Vec<Mode>> {
     Ok(modes)
 }
 
-/// Select the best matching mode. Sort key: priority desc, name asc.
-pub fn select(prompt: &str, modes: &[Mode]) -> Option<Selection> {
-    let mut matched: Vec<&Mode> = modes
+/// Every mode whose triggers match, in load order (directory precedence,
+/// filename order within). Modes are phases of one job — a request routinely
+/// spans several (implement this, then open the PR), so picking a single
+/// winner would drop the other phase's stop conditions. All of them attach
+/// and their guardrails add up.
+pub fn matching<'a>(prompt: &str, modes: &'a [Mode]) -> Vec<&'a Mode> {
+    modes
         .iter()
         .filter(|m| m.triggers_re.as_ref().is_some_and(|re| re.is_match(prompt)))
-        .collect();
-
-    if matched.is_empty() {
-        return None;
-    }
-
-    matched.sort_by(|a, b| {
-        b.priority
-            .cmp(&a.priority)
-            .then_with(|| a.name.cmp(&b.name))
-    });
-
-    let matched_names: Vec<String> = matched.iter().map(|m| m.name.clone()).collect();
-    Some(Selection {
-        chosen: matched[0].clone(),
-        matched_names,
-    })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn mode(name: &str, priority: i32, triggers: &str) -> Mode {
-        Mode {
-            name: name.into(),
-            priority,
-            triggers: triggers.into(),
-            triggers_re: Regex::new(triggers).ok(),
-            body: format!("body of {name}"),
-            path: PathBuf::from(format!("{name}.md")),
-        }
+    /// Build a mode through the real parse path, so tests survive internal
+    /// refactors of term parsing / pattern compilation.
+    fn mode(name: &str, triggers: &str) -> Mode {
+        let text = format!("---\nname: {name}\ntriggers: {triggers}\n---\nbody of {name}\n");
+        parse_mode(&text, Path::new(&format!("{name}.md")))
+    }
+
+    fn re(triggers: &str) -> Regex {
+        mode("m", triggers).triggers_re.unwrap()
     }
 
     #[test]
     fn strips_quotes_from_triggers() {
-        let text = "---\nname: review\ntriggers: \"レビュー|review\"\n---\nbody\n";
-        let m = parse_mode(text, Path::new("review.md")).unwrap();
-        assert_eq!(m.triggers, "レビュー|review");
+        let m = mode("review", "\"レビュー, review\"");
+        assert_eq!(m.terms, vec!["レビュー", "review"]);
         assert!(m.triggers_re.unwrap().is_match("コードレビュー"));
     }
 
     #[test]
-    fn priority_beats_name_order() {
+    fn ascii_terms_do_not_match_inside_words() {
+        let re = re("pr, pull request");
+        assert!(re.is_match("PRを作って"));
+        assert!(re.is_match("open a pr"));
+        assert!(re.is_match("pr"));
+        assert!(re.is_match("Pull Request お願い"));
+        assert!(re.is_match("pullrequest"));
+        assert!(!re.is_match("priority を上げて"));
+        assert!(!re.is_match("apricot"));
+    }
+
+    #[test]
+    fn kana_terms_match_inside_longer_text() {
+        let re = re("実装して, レビュー");
+        assert!(re.is_match("実装してPR作って"));
+        assert!(re.is_match("コードレビューして"));
+        assert!(!re.is_match("設計だけ考えて"));
+    }
+
+    #[test]
+    fn terms_are_literal_not_regex() {
+        let re = re("fix(bug)");
+        assert!(re.is_match("please fix(bug) now"));
+        assert!(!re.is_match("fixbug"));
+    }
+
+    #[test]
+    fn no_usable_term_means_mode_never_attaches() {
+        for triggers in ["", " ,  , ", "[]"] {
+            let modes = vec![mode("m", triggers)];
+            assert!(matching("なんでも", &modes).is_empty(), "{triggers:?}");
+        }
+    }
+
+    #[test]
+    fn all_matching_modes_attach_in_load_order() {
         let modes = vec![
-            mode("implement", 0, "実装|レビュー"),
-            mode("review", 10, "レビュー"),
+            mode("implement", "実装して, 直して"),
+            mode("pull-request", "pr, プルリク"),
+            mode("review", "レビュー"),
         ];
-        let sel = select("この実装をレビューして", &modes).unwrap();
-        assert_eq!(sel.chosen.name, "review");
-        assert_eq!(sel.matched_names, vec!["review", "implement"]);
+
+        let matched = matching("実装してPR作って", &modes);
+        let names: Vec<&str> = matched.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(names, vec!["implement", "pull-request"]);
+
+        assert!(matching("設計だけ考えて", &modes).is_empty());
     }
 }
