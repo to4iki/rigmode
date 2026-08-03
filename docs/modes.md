@@ -5,10 +5,10 @@ One Markdown file per mode. Frontmatter decides when it attaches; the body is in
 ```markdown
 ---
 name: review
-triggers: レビュー, コードレビュー, review
+triggers: review, code review
 ---
 
-## 判定原則
+## Decision principles
 ...
 ```
 
@@ -17,7 +17,7 @@ triggers: レビュー, コードレビュー, review
 | `name` | filename stem | Prefer matching the stem (`check` warns) |
 | `triggers` | — | Literal terms separated by `,` (or a list `[a, b]`). Quotes are stripped |
 
-Trigger matching is case-insensitive and literal — regex metacharacters have no special meaning. A term end that is an ASCII letter may not touch another one, so `pr` matches `PRを作って` but stays out of `priority`; kana ends carry no such guard, so `実装して` still matches inside `実装してPR作って`. A space inside a term is optional (`pull request` also matches `pullrequest`).
+Trigger matching is case-insensitive and literal — regex metacharacters have no special meaning. Only term ends that are ASCII letters are guarded against adjoining ASCII letters, so `pr` matches `open a PR` but stays out of `priority`. Ends that are not ASCII letters have no such guard. A space inside a term is optional (`pull request` also matches `pullrequest`).
 
 Keep bodies under 10,000 characters (Claude Code truncates hook output). Under **Gate**, state what the human should judge; pushbacks are recorded via `[gate]` markers (see [Usage](usage.md#gate-recording)).
 
