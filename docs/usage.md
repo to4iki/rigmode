@@ -93,7 +93,7 @@ Columns: timestamp, modes, marker, note, session id.
 markers = ["wrong", "redo", "that's not it"]
 ```
 
-When a prompt's **first line** contains a marker (case-insensitive substring) and the session has a prior attach, `attach` appends one line to `gates.jsonl` with the session's last attached modes. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.
+When a prompt's **first line** matches a marker (same literal rules as mode triggers) and the session has a prior attach, `attach` appends one line to `gates.jsonl` with the session's last attached modes. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.
 
 ## Debugging
 

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::GateConfig;
 use crate::log::{self, AttachLogRecord};
+use crate::mode;
 
 pub const GATES_LOG: &str = "gates.jsonl";
 
@@ -23,19 +24,20 @@ pub struct GateRecord {
 
 const NOTE_MAX_CHARS: usize = 200;
 
-/// Match the first line of a prompt against configured markers
-/// (case-insensitive substring). Returns the marker and the (truncated) line.
+/// Match the first line of a prompt against configured markers, with the same
+/// literal matching as mode triggers. Returns the marker and the (truncated) line.
 fn detect_intervention(prompt: &str, gate: &GateConfig) -> Option<(String, String)> {
     let first = prompt.lines().next()?.trim();
     if first.is_empty() {
         return None;
     }
-    let lower = first.to_lowercase();
     let marker = gate
         .markers
         .iter()
         .filter(|m| !m.trim().is_empty())
-        .find(|m| lower.contains(&m.to_lowercase()))
+        .find(|m| {
+            mode::build_pattern(std::slice::from_ref(*m)).is_some_and(|re| re.is_match(first))
+        })
         .cloned()?;
     Some((marker, truncate_chars(first, NOTE_MAX_CHARS)))
 }
@@ -127,6 +129,14 @@ mod tests {
         maybe_record_from_prompt(data, "違う", None, &gate); // no session
         maybe_record_from_prompt(data, "違う", Some("orphan"), &gate); // no prior attach
         maybe_record_from_prompt(data, "違う", Some("sid"), &GateConfig::default()); // markers unset
+        maybe_record_from_prompt(
+            data,
+            "notification",
+            Some("sid"),
+            &GateConfig {
+                markers: vec!["no".into()],
+            },
+        ); // ASCII marker must not match inside a word
 
         let path = data.join(GATES_LOG);
         let gates = list_gates(&path, None, None);
