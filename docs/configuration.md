@@ -32,7 +32,7 @@ modes_dirs = ["~/my/modes", "./modes"]
 
 ### `[gate].markers`
 
-Words that mark a prompt as a human intervention (a rejection of the agent's work). Matched as a case-insensitive substring on the prompt's **first line**. An empty list disables recording.
+Words that mark a prompt as a human intervention (a rejection of the agent's work). Matched on the prompt's **first line** with the same rules as mode triggers: case-insensitive, literal, ASCII-letter ends guarded so `no` stays out of `notification`. An empty list disables recording.
 
 - **Type:** Array of strings
 - **Default:** `[]`
