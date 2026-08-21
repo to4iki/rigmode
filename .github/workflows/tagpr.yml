@@ -9,11 +9,48 @@ jobs:
       contents: write
       pull-requests: write
       issues: read
+    outputs:
+      tag: ${{ steps.tagpr.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Songmu/tagpr@v1
+      - id: tagpr
+        uses: Songmu/tagpr@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # GITHUB_TOKEN tags do not start other workflows, so upload binaries in this run.
+  upload-assets:
+    needs: tagpr
+    if: needs.tagpr.outputs.tag != ''
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: rigmode-linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: rigmode-linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: rigmode-darwin-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: rigmode-darwin-arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.tagpr.outputs.tag }}
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: rigmode
+          target: ${{ matrix.target }}
+          archive: ${{ matrix.archive }}
+          ref: refs/tags/${{ needs.tagpr.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
