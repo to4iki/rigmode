@@ -3,3 +3,4 @@
 	releaseBranch = main
 	versionFile = Cargo.toml
 	changelog = true
+	postVersionCommand = cargo update --workspace --package rigmode
