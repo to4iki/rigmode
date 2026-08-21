@@ -61,7 +61,7 @@ rigmode log --mode review --limit 20
 
 Lists recorded attaches (newest first) from `attach.jsonl` — the ground truth for which modes a prompt actually received.
 
-Columns: timestamp, attached modes, working directory.
+Columns: timestamp, attached modes, working directory, session id.
 
 | Flag | Description |
 |------|-------------|

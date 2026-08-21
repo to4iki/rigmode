@@ -12,10 +12,11 @@ pub fn execute(mode: Option<String>, limit: Option<usize>) -> anyhow::Result<()>
 
     for r in records {
         println!(
-            "{}\t{}\t{}",
+            "{}\t{}\t{}\t{}",
             r.ts,
             r.modes.join(","),
-            r.cwd.as_deref().unwrap_or("-")
+            r.cwd.as_deref().unwrap_or("-"),
+            r.session_id.as_deref().unwrap_or("-")
         );
     }
     Ok(())
