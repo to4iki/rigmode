@@ -27,4 +27,4 @@ cargo fmt
 - `rigmode log` lists attach.jsonl (which modes a prompt actually received). Old-schema lines fail to parse and are skipped.
 - Hook registration uses Claude Code exec form (`command` + `args`) and keys idempotency on `args`, not the binary path.
 - Cursor lacks per-prompt context injection (`beforeSubmitPrompt` cannot attach mode text). Codex documents `UserPromptSubmit` + `additionalContext`, but no rigmode adapter yet.
-- Gate recording (`rigmode gate`, gates.jsonl, `[gate]` markers) was removed: it was confirmation-only, not essential. Harvest (correction extraction) and evolution history remain Future.
+- Gate recording (`rigmode gate`, gates.jsonl, `[gate]` markers) was removed: it was confirmation-only, not essential. Harvest (correction extraction) and evolution history remain Future and need a new capture mechanism first.
