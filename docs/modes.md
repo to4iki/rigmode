@@ -10,6 +10,12 @@ triggers: review, code review
 
 ## Decision principles
 ...
+
+## Stop conditions
+...
+
+## Gate
+...
 ```
 
 | Key | Default | Notes |

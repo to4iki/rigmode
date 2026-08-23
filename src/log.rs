@@ -31,10 +31,18 @@ pub struct AttachLogRecord {
     pub modes: Vec<String>,
 }
 
-/// Best-effort append of one JSONL line. Failures are swallowed so attach
-/// stays exit 0.
-fn append_jsonl<T: Serialize>(path: &Path, record: &T) {
-    let Ok(line) = serde_json::to_string(record) else {
+/// Best-effort append of one attach.jsonl line. Failures are swallowed so
+/// attach stays exit 0.
+pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode]) {
+    let record = AttachRecord {
+        ts: Local::now().to_rfc3339(),
+        agent,
+        session_id: meta.session_id.as_deref(),
+        transcript_path: meta.transcript_path.as_deref(),
+        cwd: meta.cwd.as_deref(),
+        modes: modes.iter().map(|m| m.name.as_str()).collect(),
+    };
+    let Ok(line) = serde_json::to_string(&record) else {
         return;
     };
     if let Some(parent) = path.parent() {
@@ -46,48 +54,22 @@ fn append_jsonl<T: Serialize>(path: &Path, record: &T) {
     let _ = writeln!(file, "{line}");
 }
 
-pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode]) {
-    let record = AttachRecord {
-        ts: Local::now().to_rfc3339(),
-        agent,
-        session_id: meta.session_id.as_deref(),
-        transcript_path: meta.transcript_path.as_deref(),
-        cwd: meta.cwd.as_deref(),
-        modes: modes.iter().map(|m| m.name.as_str()).collect(),
-    };
-    append_jsonl(path, &record);
-}
-
-/// Parse a JSONL log newest-first (file order is append-only), keeping records
-/// that pass `keep`, stopping once `limit` are found. Unparseable lines are
-/// skipped; missing file → empty.
-fn list_jsonl<T: serde::de::DeserializeOwned>(
-    path: &Path,
-    keep: impl Fn(&T) -> bool,
-    limit: Option<usize>,
-) -> Vec<T> {
-    let Ok(text) = fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    text.lines()
-        .rev()
-        .filter_map(|line| serde_json::from_str(line.trim()).ok())
-        .filter(|r| keep(r))
-        .take(limit.unwrap_or(usize::MAX))
-        .collect()
-}
-
-/// Newest first, optionally filtered by attached mode, limited.
+/// Newest first (file order is append-only), optionally filtered by attached
+/// mode, limited. Unparseable lines are skipped; missing file → empty.
 pub fn list_attaches(
     path: &Path,
     mode: Option<&str>,
     limit: Option<usize>,
 ) -> Vec<AttachLogRecord> {
-    list_jsonl(
-        path,
-        |r: &AttachLogRecord| mode.is_none_or(|mode| r.modes.iter().any(|m| m == mode)),
-        limit,
-    )
+    let Ok(text) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    text.lines()
+        .rev()
+        .filter_map(|line| serde_json::from_str::<AttachLogRecord>(line.trim()).ok())
+        .filter(|r| mode.is_none_or(|mode| r.modes.iter().any(|m| m == mode)))
+        .take(limit.unwrap_or(usize::MAX))
+        .collect()
 }
 
 #[cfg(test)]

@@ -29,10 +29,4 @@ modes_dirs = ["~/my/modes", "./modes"]
 
 ## Data Files
 
-Under `~/.local/share/rigmode/` (or `$XDG_DATA_HOME/rigmode/`), one JSON object per line, written best-effort so `attach` always exits `0`:
-
-| File | Contents | Browse with |
-|------|----------|-------------|
-| `attach.jsonl` | One line per attach | `rigmode log` |
-
-Old-schema lines fail to parse and are skipped.
+Under `~/.local/share/rigmode/` (or `$XDG_DATA_HOME/rigmode/`), `attach.jsonl` holds one JSON object per attach, written best-effort so `attach` always exits `0`. Browse it with `rigmode log`; old-schema lines fail to parse and are skipped.
