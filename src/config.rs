@@ -7,15 +7,6 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct Config {
     pub modes_dirs: Vec<PathBuf>,
-    pub gate: GateConfig,
-}
-
-/// Words that mark a prompt as a human intervention (a rejection of the
-/// agent's work). An empty list (the default) disables recording.
-#[derive(Debug, Default, Deserialize)]
-#[serde(default)]
-pub struct GateConfig {
-    pub markers: Vec<String>,
 }
 
 impl Config {

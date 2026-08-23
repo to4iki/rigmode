@@ -42,16 +42,6 @@ pub enum Command {
         #[arg(long)]
         limit: Option<usize>,
     },
-
-    /// List recorded interventions (newest first)
-    Gate {
-        /// Filter by mode name
-        #[arg(long)]
-        mode: Option<String>,
-        /// Max rows to print
-        #[arg(long)]
-        limit: Option<usize>,
-    },
 }
 
 #[derive(Subcommand)]

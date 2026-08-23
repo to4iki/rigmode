@@ -68,33 +68,6 @@ Columns: timestamp, attached modes, working directory, session id.
 | `--mode <NAME>` | Filter by attached mode name |
 | `--limit <N>` | Max rows to print |
 
-### `rigmode gate`
-
-```sh
-rigmode gate
-rigmode gate --mode implement --limit 20
-```
-
-Lists recorded interventions (newest first) from `gates.jsonl`.
-
-Columns: timestamp, modes, marker, note, session id.
-
-| Flag | Description |
-|------|-------------|
-| `--mode <NAME>` | Filter by mode name |
-| `--limit <N>` | Max rows to print |
-
-## Gate recording
-
-`gates.jsonl` records interventions only — the moments a human pushed back on the agent's work. Declare intervention words in `config.toml`:
-
-```toml
-[gate]
-markers = ["wrong", "redo", "that's not it"]
-```
-
-When a prompt's **first line** matches a marker (same literal rules as mode triggers) and the session has a prior attach, `attach` appends one line to `gates.jsonl` with the session's last attached modes. An empty list (the default) disables recording. Approvals are not recorded — silence means pass.
-
 ## Debugging
 
 ```sh
@@ -106,9 +79,6 @@ echo '{"prompt":"implement this"}' | rigmode attach claude-code
 
 # See what actually attached in recent prompts
 rigmode log --limit 20
-
-# See recorded pushbacks
-rigmode gate --limit 20
 ```
 
 `attach` always exits `0` and writes logs best-effort. If nothing attaches, check triggers with `check`, then confirm the hook path with `hook install` / `check`.
