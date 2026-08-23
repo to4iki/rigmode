@@ -33,7 +33,7 @@ pub struct AttachLogRecord {
 
 /// Best-effort append of one JSONL line. Failures are swallowed so attach
 /// stays exit 0.
-pub fn append_jsonl<T: Serialize>(path: &Path, record: &T) {
+fn append_jsonl<T: Serialize>(path: &Path, record: &T) {
     let Ok(line) = serde_json::to_string(record) else {
         return;
     };
@@ -61,7 +61,7 @@ pub fn append_attach(path: &Path, agent: &str, meta: &PromptMeta, modes: &[&Mode
 /// Parse a JSONL log newest-first (file order is append-only), keeping records
 /// that pass `keep`, stopping once `limit` are found. Unparseable lines are
 /// skipped; missing file → empty.
-pub fn list_jsonl<T: serde::de::DeserializeOwned>(
+fn list_jsonl<T: serde::de::DeserializeOwned>(
     path: &Path,
     keep: impl Fn(&T) -> bool,
     limit: Option<usize>,

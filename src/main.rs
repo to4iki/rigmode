@@ -9,7 +9,6 @@ mod adapters;
 mod cli;
 mod commands;
 mod config;
-mod gate;
 mod log;
 mod mode;
 mod prompt;
@@ -37,7 +36,6 @@ fn run(command: Command) -> Result<ExitCode> {
         },
         Command::Check { modes_dirs } => commands::check::execute(modes_dirs, &load_config()?)?,
         Command::Log { mode, limit } => commands::log::execute(mode, limit)?,
-        Command::Gate { mode, limit } => commands::gate::execute(mode, limit)?,
     }
     Ok(ExitCode::SUCCESS)
 }

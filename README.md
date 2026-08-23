@@ -4,7 +4,7 @@
 
 Attach work modes to AI coding agent prompts.
 
-A mode declares decision principles, stop conditions, and human gates. Every mode whose triggers match your prompt is injected automatically via an agent hook — modes are phases of one job, so their guardrails add up. Push back in your own words — configured intervention markers record the correction to `gates.jsonl` automatically.
+A mode declares decision principles, stop conditions, and human gates. Every mode whose triggers match your prompt is injected automatically via an agent hook — modes are phases of one job, so their guardrails add up.
 
 ## Agent support
 
@@ -20,9 +20,6 @@ A mode declares decision principles, stop conditions, and human gates. Every mod
 mkdir -p ~/.config/rigmode
 cat > ~/.config/rigmode/config.toml <<'EOF'
 modes_dirs = ["~/src/github.com/to4iki/prompt-harness/modes"]
-
-[gate]
-markers = ["wrong", "redo", "that's not it"]
 EOF
 
 # Register the Claude Code UserPromptSubmit hook
@@ -37,10 +34,6 @@ echo '{"prompt":"implement this"}' | rigmode attach claude-code
 # List recent attaches (newest first)
 rigmode log
 rigmode log --mode review --limit 20
-
-# List recorded interventions (newest first)
-rigmode gate
-rigmode gate --mode implement --limit 20
 
 # Remove the hook
 rigmode hook uninstall claude-code
@@ -70,7 +63,7 @@ cargo install rigmode
 
 ## Documentation
 
-- [Usage](docs/usage.md) — Commands, flags, gate recording, and debugging
+- [Usage](docs/usage.md) — Commands, flags, and debugging
 - [Configuration](docs/configuration.md) — Config file, modes dirs, and data files
 - [Modes](docs/modes.md) — Mode file format and selection rules
 

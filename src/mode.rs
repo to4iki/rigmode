@@ -10,7 +10,7 @@ pub struct Mode {
     pub name: String,
     /// Parsed trigger terms, matched literally.
     pub terms: Vec<String>,
-    /// Compiled at load time via [`build_pattern`]. `None` when no usable term.
+    /// Compiled at load time via `build_pattern`. `None` when no usable term.
     pub triggers_re: Option<Regex>,
     pub body: String,
     pub path: PathBuf,
@@ -99,15 +99,15 @@ fn parse_triggers(value: &str) -> Vec<String> {
         .collect()
 }
 
-/// Compile trigger / marker terms into one case-insensitive pattern.
+/// Compile trigger terms into one case-insensitive pattern.
 ///
 /// Each term is matched literally, and an end that is an ASCII letter may not be
-/// glued to another one, so `pr` stays out of `priority` (and `no` out of
-/// `notification`). Only such ends are guarded: `実装して` has to keep matching
+/// glued to another one, so `pr` stays out of `priority`. Only such ends are
+/// guarded: `実装して` has to keep matching
 /// in `実装してPR作って`, and `\b` cannot draw that line, since regex counts kana
 /// as word characters. The regex crate has no lookaround, so the guards consume
 /// a neighbor char instead — fine for `is_match`, which is the only use.
-pub(crate) fn build_pattern(terms: &[String]) -> Option<Regex> {
+fn build_pattern(terms: &[String]) -> Option<Regex> {
     let mut alts = Vec::new();
     for term in terms {
         let term = term.trim();

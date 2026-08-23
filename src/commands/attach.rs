@@ -7,7 +7,6 @@ use std::process::ExitCode;
 use crate::adapters::claude_code;
 use crate::cli::Agent;
 use crate::config;
-use crate::gate;
 use crate::log;
 use crate::mode;
 
@@ -29,15 +28,6 @@ fn run(agent: Agent, modes_dirs: Vec<PathBuf>) -> anyhow::Result<String> {
             let config = config::default_config_path()
                 .and_then(|p| config::load_config(&p))
                 .unwrap_or_default();
-
-            if let Ok(data_dir) = config::default_data_dir() {
-                gate::maybe_record_from_prompt(
-                    &data_dir,
-                    &meta.prompt,
-                    meta.session_id.as_deref(),
-                    &config.gate,
-                );
-            }
 
             let modes = mode::load_modes(&config.resolve_modes_dirs(modes_dirs)?)?;
             let matched = mode::matching(&meta.prompt, &modes);
