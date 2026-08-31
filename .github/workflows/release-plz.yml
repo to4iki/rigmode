@@ -48,8 +48,11 @@ jobs:
         run: echo "tag=$(jq -r '.[0].tag' <<<"$RELEASES")" >> "$GITHUB_OUTPUT"
 
   # Create or update the release PR (Cargo.toml, Cargo.lock, CHANGELOG.md).
+  # Wait for release so we do not open a duplicate PR while crates.io still
+  # shows the previous version.
   release-plz-pr:
     name: Release-plz PR
+    needs: release-plz-release
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'to4iki' }}
     permissions:
