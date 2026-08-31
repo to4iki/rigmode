@@ -69,7 +69,7 @@ cargo install rigmode
 
 ## Releasing
 
-Releases are managed by [release-plz](https://release-plz.dev/). Merging the release PR tags `v*`, publishes to crates.io, and uploads Homebrew binaries to the GitHub Release.
+Releases are managed by [release-plz](https://release-plz.dev/). Merging the release PR creates a version tag, publishes to crates.io, and uploads Homebrew binaries to the GitHub Release.
 
 ## License
 
