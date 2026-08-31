@@ -8,6 +8,19 @@
 
 ### Other
 
+- release v0.2.0
+- clarify that merging the release PR creates a version tag
+- replace tagpr with release-plz
+- simplify leftovers from gate removal
+
+## [0.2.0](https://github.com/to4iki/rigmode/compare/v0.1.2...v0.2.0) - 2026-08-31
+
+### Added
+
+- *(gate)* [**breaking**] remove gate recording and the rigmode gate command
+
+### Other
+
 - clarify that merging the release PR creates a version tag
 - replace tagpr with release-plz
 - simplify leftovers from gate removal
