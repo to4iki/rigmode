@@ -67,6 +67,10 @@ cargo install rigmode
 - [Configuration](docs/configuration.md) — Config file, modes dirs, and data files
 - [Modes](docs/modes.md) — Mode file format and selection rules
 
+## Releasing
+
+Releases are managed by [release-plz](https://release-plz.dev/). Merging the release PR tags `v*`, publishes to crates.io, and uploads Homebrew binaries to the GitHub Release.
+
 ## License
 
 MIT

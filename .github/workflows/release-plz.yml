@@ -1,0 +1,104 @@
+# Release-plz: version PR, git tag, GitHub Release, and crates.io.
+#
+# crates.io Trusted Publishing (one-time, outside this repo):
+# 1. https://crates.io/crates/rigmode/settings
+#    Add a GitHub Actions trusted publisher:
+#    - Repository: to4iki/rigmode
+#    - Workflow filename: release-plz.yml
+#    - Environment: (leave empty)
+# 2. Repo Settings > Actions > General: allow GitHub Actions to create pull requests.
+#
+# GITHUB_TOKEN tags do not start other workflows, so binaries upload in this run.
+
+name: Release-plz
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # Tag, GitHub Release, and cargo publish when a release PR is merged.
+  release-plz-release:
+    name: Release-plz release
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'to4iki' }}
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - id: release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: tag
+        if: steps.release-plz.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+        run: echo "tag=$(jq -r '.[0].tag' <<<"$RELEASES")" >> "$GITHUB_OUTPUT"
+
+  # Create or update the release PR (Cargo.toml, Cargo.lock, CHANGELOG.md).
+  release-plz-pr:
+    name: Release-plz PR
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'to4iki' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    needs: release-plz-release
+    if: needs.release-plz-release.outputs.tag != ''
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: rigmode-linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: rigmode-linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: rigmode-darwin-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: rigmode-darwin-arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.release-plz-release.outputs.tag }}
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: rigmode
+          target: ${{ matrix.target }}
+          archive: ${{ matrix.archive }}
+          ref: refs/tags/${{ needs.release-plz-release.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
