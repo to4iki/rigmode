@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 
-use crate::adapters::claude_code;
+use crate::adapters::{claude_code, codex};
 use crate::config::Config;
 use crate::mode::{self, Mode};
 
@@ -68,23 +68,35 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
         }
     }
 
-    match claude_code::registered_command(&claude_code::settings_path())? {
-        Some(cmd) => {
-            let path = Path::new(&cmd);
-            let status = if path.is_file() {
-                "ok"
-            } else {
-                "missing binary"
-            };
-            println!("hook: registered -> {cmd} [{status}]");
-            if !path.is_file() {
-                errors += 1;
+    let hooks = [
+        (
+            "claude-code",
+            claude_code::registered_command(&claude_code::settings_path())?,
+        ),
+        ("codex", codex::registered_command(&codex::hooks_path())?),
+    ];
+    let mut registered = 0;
+    for (agent, cmd) in &hooks {
+        match cmd {
+            Some(cmd) => {
+                registered += 1;
+                let path = Path::new(cmd);
+                let status = if path.is_file() {
+                    "ok"
+                } else {
+                    "missing binary"
+                };
+                println!("hook[{agent}]: registered -> {cmd} [{status}]");
+                if !path.is_file() {
+                    errors += 1;
+                }
             }
+            None => println!("hook[{agent}]: not registered"),
         }
-        None => {
-            println!("hook: not registered");
-            warnings += 1;
-        }
+    }
+    // One agent is enough; a Claude-only or Codex-only setup is not a warning.
+    if registered == 0 {
+        warnings += 1;
     }
 
     if errors > 0 {

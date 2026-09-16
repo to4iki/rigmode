@@ -1,7 +1,8 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use crate::adapters::{load_json, mode_context, write_json};
 use crate::mode::Mode;
 use crate::prompt::PromptMeta;
 
@@ -25,20 +26,7 @@ pub fn decode(stdin: &str) -> Result<PromptMeta> {
 }
 
 pub fn encode(modes: &[&Mode]) -> String {
-    use std::fmt::Write;
-
-    let names: Vec<&str> = modes.iter().map(|m| m.name.as_str()).collect();
-    let mut context = format!(
-        "Work modes matching this request: {}. All of them apply, so satisfy every \
-         stop condition and respect every gate below. Hook output does not reach \
-         subagents, so delegating requires copying these bodies into the subagent \
-         instructions.",
-        names.join(", ")
-    );
-    // Name each body, so a section heading is never read as the other mode's.
-    for m in modes {
-        let _ = write!(context, "\n\n# {}\n\n{}", m.name, m.body);
-    }
+    let context = mode_context(modes);
     json!({
         "hookSpecificOutput": {
             "hookEventName": "UserPromptSubmit",
@@ -88,7 +76,7 @@ fn our_entry(binary: &std::path::Path) -> Value {
 }
 
 pub fn install_hook(settings_path: &std::path::Path, binary: &std::path::Path) -> Result<()> {
-    let mut root = load_settings(settings_path)?;
+    let mut root = load_json(settings_path)?;
     let hooks = root
         .as_object_mut()
         .context("settings.json root must be an object")?
@@ -103,14 +91,14 @@ pub fn install_hook(settings_path: &std::path::Path, binary: &std::path::Path) -
     list.retain(|e| !is_our_entry(e));
     list.push(our_entry(binary));
 
-    write_settings(settings_path, &root)
+    write_json(settings_path, &root)
 }
 
 pub fn uninstall_hook(settings_path: &std::path::Path) -> Result<bool> {
     if !settings_path.exists() {
         return Ok(false);
     }
-    let mut root = load_settings(settings_path)?;
+    let mut root = load_json(settings_path)?;
     let Some(hooks) = root.get_mut("hooks").and_then(|h| h.as_object_mut()) else {
         return Ok(false);
     };
@@ -131,7 +119,7 @@ pub fn uninstall_hook(settings_path: &std::path::Path) -> Result<bool> {
     }
 
     if removed {
-        write_settings(settings_path, &root)?;
+        write_json(settings_path, &root)?;
     }
     Ok(removed)
 }
@@ -140,7 +128,7 @@ pub fn registered_command(settings_path: &std::path::Path) -> Result<Option<Stri
     if !settings_path.exists() {
         return Ok(None);
     }
-    let root = load_settings(settings_path)?;
+    let root = load_json(settings_path)?;
     let Some(entries) = root
         .pointer("/hooks/UserPromptSubmit")
         .and_then(|e| e.as_array())
@@ -155,35 +143,6 @@ pub fn registered_command(settings_path: &std::path::Path) -> Result<Option<Stri
         }
     }
     Ok(None)
-}
-
-fn load_settings(path: &std::path::Path) -> Result<Value> {
-    if !path.exists() {
-        return Ok(json!({}));
-    }
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-    if text.trim().is_empty() {
-        return Ok(json!({}));
-    }
-    match serde_json::from_str(&text) {
-        Ok(v) => Ok(v),
-        Err(e) => bail!(
-            "{} is not valid JSON, refusing to overwrite it: {e}",
-            path.display()
-        ),
-    }
-}
-
-fn write_settings(path: &std::path::Path, value: &Value) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    let body = serde_json::to_string_pretty(value)?;
-    std::fs::write(path, format!("{body}\n"))
-        .with_context(|| format!("Failed to write {}", path.display()))?;
-    Ok(())
 }
 
 #[cfg(test)]

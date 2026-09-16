@@ -61,12 +61,14 @@ pub enum HookAction {
 pub enum Agent {
     #[value(name = "claude-code")]
     ClaudeCode,
+    Codex,
 }
 
 impl Agent {
     pub fn as_str(self) -> &'static str {
         match self {
             Agent::ClaudeCode => "claude-code",
+            Agent::Codex => "codex",
         }
     }
 }
