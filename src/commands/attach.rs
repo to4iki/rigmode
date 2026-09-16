@@ -4,7 +4,7 @@ use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use crate::adapters::{claude_code, codex};
+use crate::adapters;
 use crate::cli::Agent;
 use crate::config;
 use crate::log;
@@ -21,10 +21,7 @@ fn run(agent: Agent, modes_dirs: Vec<PathBuf>) -> anyhow::Result<String> {
     let mut stdin = String::new();
     io::stdin().read_to_string(&mut stdin)?;
 
-    let meta = match agent {
-        Agent::ClaudeCode => claude_code::decode(&stdin)?,
-        Agent::Codex => codex::decode(&stdin)?,
-    };
+    let meta = adapters::decode(&stdin, agent)?;
     // Best-effort: an unreadable config still attaches with defaults.
     let config = config::default_config_path()
         .and_then(|p| config::load_config(&p))
@@ -43,8 +40,5 @@ fn run(agent: Agent, modes_dirs: Vec<PathBuf>) -> anyhow::Result<String> {
             &matched,
         );
     }
-    Ok(match agent {
-        Agent::ClaudeCode => claude_code::encode(&matched),
-        Agent::Codex => codex::encode(&matched),
-    })
+    Ok(adapters::encode(&matched))
 }

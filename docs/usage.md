@@ -54,7 +54,7 @@ rigmode check
 rigmode check --modes-dir ./modes
 ```
 
-Validates modes and hook registration for every agent. Non-zero exit on errors; warnings alone still exit `0`. No agent registered is a warning; a registered hook whose binary is missing is an error. Codex hook trust is not visible in `hooks.json`, so `check` cannot verify it.
+Validates modes and hook registration for every agent. Non-zero exit on errors; warnings alone still exit `0`. No agent registered is a warning; a registered hook whose binary is missing, or a hook file that is not valid JSON, is an error (one bad file does not abort the rest of the report). Codex hook trust is not visible in `hooks.json`, so `check` cannot verify it.
 
 | Flag | Description |
 |------|-------------|

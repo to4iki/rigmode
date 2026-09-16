@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 
-use crate::adapters::{claude_code, codex};
+use crate::adapters;
 use crate::cli::Agent;
 use crate::commands::check;
 use crate::config::Config;
@@ -18,26 +18,16 @@ pub fn install(agent: Agent, force: bool, config: &Config) -> Result<()> {
             binary.display()
         );
     }
-    match agent {
-        Agent::ClaudeCode => {
-            let settings = claude_code::settings_path();
-            claude_code::install_hook(&settings, &binary)?;
-            println!(
-                "UserPromptSubmit registered in {}\n  command: {}\n  args: [attach, claude-code]",
-                settings.display(),
-                binary.display()
-            );
-        }
-        Agent::Codex => {
-            let hooks = codex::hooks_path();
-            codex::install_hook(&hooks, &binary)?;
-            println!(
-                "UserPromptSubmit registered in {}\n  command: {}\n\
-                 Codex skips untrusted hooks: run /hooks inside Codex and trust this entry.",
-                hooks.display(),
-                codex::command(&binary)
-            );
-        }
+    let hooks = adapters::hooks(agent);
+    hooks.install(&binary)?;
+    println!(
+        "UserPromptSubmit registered in {}\n  command: {} attach {}",
+        hooks.path.display(),
+        binary.display(),
+        agent.as_str()
+    );
+    if matches!(agent, Agent::Codex) {
+        println!("Codex skips untrusted hooks: run /hooks inside Codex and trust this entry.");
     }
     // Surface mode/hook issues without failing install.
     let _ = check::execute(Vec::new(), config);
@@ -45,22 +35,11 @@ pub fn install(agent: Agent, force: bool, config: &Config) -> Result<()> {
 }
 
 pub fn uninstall(agent: Agent) -> Result<()> {
-    let (path, removed) = match agent {
-        Agent::ClaudeCode => {
-            let settings = claude_code::settings_path();
-            let removed = claude_code::uninstall_hook(&settings)?;
-            (settings, removed)
-        }
-        Agent::Codex => {
-            let hooks = codex::hooks_path();
-            let removed = codex::uninstall_hook(&hooks)?;
-            (hooks, removed)
-        }
-    };
-    if removed {
-        println!("UserPromptSubmit removed from {}", path.display());
+    let hooks = adapters::hooks(agent);
+    if hooks.uninstall()? {
+        println!("UserPromptSubmit removed from {}", hooks.path.display());
     } else {
-        println!("nothing to remove in {}", path.display());
+        println!("nothing to remove in {}", hooks.path.display());
     }
     Ok(())
 }

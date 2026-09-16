@@ -2,8 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
+use clap::ValueEnum;
 
-use crate::adapters::{claude_code, codex};
+use crate::adapters;
+use crate::cli::Agent;
 use crate::config::Config;
 use crate::mode::{self, Mode};
 
@@ -68,30 +70,34 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
         }
     }
 
-    let hooks = [
-        (
-            "claude-code",
-            claude_code::registered_command(&claude_code::settings_path())?,
-        ),
-        ("codex", codex::registered_command(&codex::hooks_path())?),
-    ];
     let mut registered = 0;
-    for (agent, cmd) in &hooks {
-        match cmd {
-            Some(cmd) => {
+    // Driven off the enum so a new agent cannot be added without being checked.
+    for agent in Agent::value_variants() {
+        let label = agent.as_str();
+        match adapters::hooks(*agent).registered() {
+            Ok(Some(reg)) => {
                 registered += 1;
-                let path = Path::new(cmd);
-                let status = if path.is_file() {
-                    "ok"
-                } else {
-                    "missing binary"
-                };
-                println!("hook[{agent}]: registered -> {cmd} [{status}]");
-                if !path.is_file() {
-                    errors += 1;
+                match reg.binary {
+                    Some(bin) if Path::new(&bin).is_file() => {
+                        println!("hook[{label}]: registered -> {bin} [ok]")
+                    }
+                    Some(bin) => {
+                        println!("hook[{label}]: registered -> {bin} [missing binary]");
+                        errors += 1;
+                    }
+                    None => println!(
+                        "hook[{label}]: registered -> {} [unverified command]",
+                        reg.command
+                    ),
                 }
             }
-            None => println!("hook[{agent}]: not registered"),
+            Ok(None) => println!("hook[{label}]: not registered"),
+            // An unreadable hook file is the user's to fix; it is not a reason
+            // to abandon the rest of the report.
+            Err(e) => {
+                println!("hook[{label}]: error: {e:#}");
+                errors += 1;
+            }
         }
     }
     // One agent is enough; a Claude-only or Codex-only setup is not a warning.
@@ -123,7 +129,7 @@ fn validate_mode(mode: &Mode) -> Vec<String> {
     }
     if mode.body.chars().count() > MAX_BODY_CHARS {
         issues.push(format!(
-            "warning: body exceeds {MAX_BODY_CHARS} characters (Claude Code truncates hook output)"
+            "warning: body exceeds {MAX_BODY_CHARS} characters (agents truncate hook output)"
         ));
     }
     issues
