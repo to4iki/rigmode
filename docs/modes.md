@@ -25,7 +25,7 @@ triggers: review, code review
 
 Trigger matching is case-insensitive and literal — regex metacharacters have no special meaning. Only term ends that are ASCII letters are guarded against adjoining ASCII letters, so `pr` matches `open a PR` but stays out of `priority`. Ends that are not ASCII letters have no such guard. A space inside a term is optional (`pull request` also matches `pullrequest`).
 
-Keep bodies under 10,000 characters (Claude Code truncates hook output; for Codex, rigmode disables the output spill, so this is the only cap). Under **Gate**, state what the human should judge.
+Keep bodies under 10,000 characters: `check` warns above that, per mode. Claude Code truncates hook output, so several large modes matching one prompt can still exceed its cap; Codex does not truncate (rigmode disables its output spill). Under **Gate**, state what the human should judge.
 
 ## Selection
 

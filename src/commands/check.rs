@@ -129,7 +129,7 @@ fn validate_mode(mode: &Mode) -> Vec<String> {
     }
     if mode.body.chars().count() > MAX_BODY_CHARS {
         issues.push(format!(
-            "warning: body exceeds {MAX_BODY_CHARS} characters (agents truncate hook output)"
+            "warning: body exceeds {MAX_BODY_CHARS} characters (Claude Code truncates hook output)"
         ));
     }
     issues

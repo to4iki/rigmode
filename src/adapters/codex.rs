@@ -262,11 +262,14 @@ mod tests {
     }
 
     /// A wrapped command is ours (so install replaces it) but its head is not
-    /// a path, so `check` must not report it as a missing binary.
+    /// a path, so `check` must not report it as a missing binary. This is
+    /// deliberately broad: any command carrying the `attach codex` tokens is
+    /// ours, even one that does not run rigmode.
     #[test]
     fn wrapped_commands_are_ours_without_a_checkable_binary() {
         for cmd in [
             "bash '/x/wrap.sh' attach codex",
+            "other-tool attach codex",
             "env RUST_LOG=off /usr/bin/rigmode attach codex",
             "\"/My Apps/rigmode\" attach codex",
             "rigmode attach codex",

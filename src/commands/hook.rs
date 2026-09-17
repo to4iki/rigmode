@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 
-use crate::adapters;
+use crate::adapters::{self, codex};
 use crate::cli::Agent;
 use crate::commands::check;
 use crate::config::Config;
@@ -20,14 +20,16 @@ pub fn install(agent: Agent, force: bool, config: &Config) -> Result<()> {
     }
     let hooks = adapters::hooks(agent);
     hooks.install(&binary)?;
-    println!(
-        "UserPromptSubmit registered in {}\n  command: {} attach {}",
-        hooks.path.display(),
-        binary.display(),
-        agent.as_str()
-    );
-    if matches!(agent, Agent::Codex) {
-        println!("Codex skips untrusted hooks: run /hooks inside Codex and trust this entry.");
+    println!("UserPromptSubmit registered in {}", hooks.path.display());
+    match agent {
+        Agent::ClaudeCode => println!(
+            "  command: {}\n  args: [attach, claude-code]",
+            binary.display()
+        ),
+        Agent::Codex => println!(
+            "  command: {}\nCodex skips untrusted hooks: run /hooks inside Codex and trust this entry.",
+            codex::command(&binary)
+        ),
     }
     // Surface mode/hook issues without failing install.
     let _ = check::execute(Vec::new(), config);

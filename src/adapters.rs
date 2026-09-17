@@ -61,6 +61,10 @@ pub fn encode(modes: &[&Mode]) -> String {
 }
 
 const EVENT: &str = "UserPromptSubmit";
+/// Hang protection: attach only reads local files. Codex would otherwise wait
+/// its 600 s default, and on timeout it skips the modes without erasing the
+/// prompt. The value is part of the Codex trust hash, so changing it means
+/// re-trusting the hook.
 pub(crate) const TIMEOUT_SECONDS: u64 = 5;
 
 /// What an agent's hook file currently records for rigmode.
