@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/to4iki/rigmode/compare/v0.2.0...v0.2.1) - 2026-10-06
+
+### Added
+
+- *(codex)* add Codex adapter for UserPromptSubmit hooks
+
+### Fixed
+
+- address PR review comments
+
+### Other
+
+- *(adapters)* share hook file handling across agents
+
 ## [0.2.0](https://github.com/to4iki/rigmode/compare/v0.1.2...v0.2.0) - 2026-08-31
 
 ### Added
