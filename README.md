@@ -10,8 +10,8 @@ A mode declares decision principles, stop conditions, and human gates. Every mod
 
 | Capability | Claude Code | Codex | Cursor |
 | -------------------------------- | ----------- | ------ | ----- |
-| Per-prompt mode attach | ✅ | ❌ | ❌ |
-| `hook install` / `uninstall` | ✅ | ❌ | ❌ |
+| Per-prompt mode attach | ✅ | ✅ | ❌ |
+| `hook install` / `uninstall` | ✅ | ✅ | ❌ |
 
 ## Quick Start
 
@@ -22,8 +22,9 @@ cat > ~/.config/rigmode/config.toml <<'EOF'
 modes_dirs = ["~/src/github.com/to4iki/prompt-harness/modes"]
 EOF
 
-# Register the Claude Code UserPromptSubmit hook
+# Register the UserPromptSubmit hook (claude-code or codex)
 rigmode hook install claude-code
+rigmode hook install codex
 
 # Validate modes and hook registration
 rigmode check
@@ -37,9 +38,10 @@ rigmode log --mode review --limit 20
 
 # Remove the hook
 rigmode hook uninstall claude-code
+rigmode hook uninstall codex
 ```
 
-Restart Claude Code (or start a new session) after `hook install` so the hook is picked up.
+Restart the agent (or start a new session) after `hook install` so the hook is picked up. Codex additionally skips untrusted hooks: run `/hooks` inside Codex and trust the rigmode entry.
 
 ## Install
 

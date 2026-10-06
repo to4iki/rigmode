@@ -2,8 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
+use clap::ValueEnum;
 
-use crate::adapters::claude_code;
+use crate::adapters;
+use crate::cli::Agent;
 use crate::config::Config;
 use crate::mode::{self, Mode};
 
@@ -68,23 +70,39 @@ pub fn execute(modes_dirs: Vec<PathBuf>, config: &Config) -> Result<()> {
         }
     }
 
-    match claude_code::registered_command(&claude_code::settings_path())? {
-        Some(cmd) => {
-            let path = Path::new(&cmd);
-            let status = if path.is_file() {
-                "ok"
-            } else {
-                "missing binary"
-            };
-            println!("hook: registered -> {cmd} [{status}]");
-            if !path.is_file() {
+    let mut registered = 0;
+    // Driven off the enum so a new agent cannot be added without being checked.
+    for agent in Agent::value_variants() {
+        let label = agent.as_str();
+        match adapters::hooks(*agent).registered() {
+            Ok(Some(reg)) => {
+                registered += 1;
+                match reg.binary {
+                    Some(bin) if Path::new(&bin).is_file() => {
+                        println!("hook[{label}]: registered -> {bin} [ok]")
+                    }
+                    Some(bin) => {
+                        println!("hook[{label}]: registered -> {bin} [missing binary]");
+                        errors += 1;
+                    }
+                    None => println!(
+                        "hook[{label}]: registered -> {} [unverified command]",
+                        reg.command
+                    ),
+                }
+            }
+            Ok(None) => println!("hook[{label}]: not registered"),
+            // An unreadable hook file is the user's to fix; it is not a reason
+            // to abandon the rest of the report.
+            Err(e) => {
+                println!("hook[{label}]: error: {e:#}");
                 errors += 1;
             }
         }
-        None => {
-            println!("hook: not registered");
-            warnings += 1;
-        }
+    }
+    // One agent is enough; a Claude-only or Codex-only setup is not a warning.
+    if registered == 0 {
+        warnings += 1;
     }
 
     if errors > 0 {
